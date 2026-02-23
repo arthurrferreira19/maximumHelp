@@ -338,6 +338,7 @@ body{
   /* modal ocupa 100% de altura e deixa 15% livre à esquerda */
   width: calc(100vw - 15vw);
   height: 100vh;
+  min-height: 0;
   background: rgba(255,255,255,0.92);
   border: 1px solid var(--border);
   border-radius: 22px 0 0 22px;
@@ -369,8 +370,10 @@ body{
 
 .mh-chat-body{
   height: calc(100% - 62px);
+  min-height: 0; /* permite scroll interno nos filhos */
   display:grid;
   grid-template-columns: 360px 1fr;
+  overflow: hidden;
 }
 @media (max-width: 992px){
   .mh-chat-body{ grid-template-columns: 1fr; }
@@ -432,6 +435,8 @@ body{
   display:flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0; /* crucial p/ .mh-chat-messages scrollar */
+  overflow: hidden;
 }
 .mh-chat-empty{
   margin: auto;
@@ -442,7 +447,7 @@ body{
 .mh-chat-empty-title{ font-weight: 900; color: var(--text); margin-top: 12px; }
 .mh-chat-empty-sub{ font-size: 13px; }
 
-.mh-chat-thread{ height: 100%; display:flex; flex-direction: column; }
+.mh-chat-thread{ height: 100%; display:flex; flex-direction: column; min-height:0; }
 .mh-chat-thread-head{
   padding: 12px 14px;
   border-bottom: 1px solid var(--border);
@@ -455,8 +460,11 @@ body{
 
 .mh-chat-messages{
   padding: 14px;
-  overflow:auto;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior: contain;
   flex: 1;
+  min-height: 0;
   display:flex;
   flex-direction: column;
   gap: 10px;
