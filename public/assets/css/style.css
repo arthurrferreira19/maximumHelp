@@ -958,3 +958,19 @@ body{
   margin-top: 8px;
 }
 .attach-row:hover{ background: rgba(127, 29, 29, .05); }
+
+/* =======================
+   TOAST (NOVAS MENSAGENS)
+======================= */
+.mh-chat-toast{
+  min-width: 320px;
+  max-width: 380px;
+  border-radius: 16px;
+  border: 1px solid rgba(18,20,32,.12);
+  box-shadow: 0 18px 50px rgba(18,20,32,.14);
+  overflow: hidden;
+}
+.mh-chat-toast .toast-header{
+  background: rgba(255,255,255,.92);
+  backdrop-filter: blur(10px);
+}

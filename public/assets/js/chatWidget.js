@@ -36,6 +36,84 @@
     } catch { return ""; }
   }
 
+  // Toast de nova mensagem (canto superior direito)
+  function showIncomingToast({ conversationId, message }) {
+    try {
+      // só notifica mensagens de outras pessoas
+      const senderId = String(message?.senderId?._id || message?.senderId || "");
+      if (!senderId || senderId === meId()) return;
+
+      const container = document.getElementById("mhChatToasts");
+      if (!container) return;
+
+      const senderName = message?.senderId?.nome || message?.senderId?.name || message?.senderId?.email || "Nova mensagem";
+
+      let preview = "";
+      if (message?.text) preview = String(message.text);
+      else if (message?.kind === "ticket") preview = "📌 Chamado anexado";
+      else if (Array.isArray(message?.attachments) && message.attachments.length) preview = "📎 Anexo";
+      else preview = "(mensagem)";
+
+      preview = preview.replace(/\s+/g, " ").trim();
+      if (preview.length > 88) preview = preview.slice(0, 88) + "…";
+
+      const time = fmtTime(message?.createdAt || Date.now());
+
+      const toastEl = document.createElement("div");
+      toastEl.className = "toast mh-chat-toast";
+      toastEl.setAttribute("role", "status");
+      toastEl.setAttribute("aria-live", "polite");
+      toastEl.setAttribute("aria-atomic", "true");
+      toastEl.setAttribute("data-bs-autohide", "true");
+      toastEl.setAttribute("data-bs-delay", "6000");
+
+      toastEl.innerHTML = `
+        <div class="toast-header" style="cursor:pointer;">
+          <span class="me-2" style="width:10px;height:10px;border-radius:999px;background: rgba(123,30,58,.85); display:inline-block;"></span>
+          <strong class="me-auto text-truncate" style="max-width:240px;">${esc(senderName)}</strong>
+          <small class="text-muted">${esc(time)}</small>
+          <button type="button" class="btn-close ms-2 mb-1" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body" style="cursor:pointer;">
+          <div class="text-truncate" style="max-width:320px;">${esc(preview)}</div>
+        </div>
+      `;
+
+      // Clique abre o chat e vai para a conversa
+      toastEl.addEventListener("click", async (e) => {
+        // se clicar no close, deixa o bootstrap fechar
+        if (e.target && (e.target.classList?.contains("btn-close") || e.target.closest?.(".btn-close"))) return;
+        openModal();
+        if (conversationId) {
+          await selectConversation(conversationId);
+          // marca como lido ao abrir
+          await API.request(`/api/chat/conversations/${conversationId}/read`, { method: "POST" });
+        }
+      });
+
+      container.appendChild(toastEl);
+
+      // Bootstrap 5 Toast
+      if (window.bootstrap?.Toast) {
+        const t = new window.bootstrap.Toast(toastEl);
+        toastEl.addEventListener("hidden.bs.toast", () => toastEl.remove());
+        t.show();
+      } else {
+        // fallback simples (caso bootstrap não esteja disponível)
+        toastEl.style.display = "block";
+        toastEl.style.opacity = "1";
+        toastEl.style.marginBottom = "10px";
+        toastEl.style.background = "#fff";
+        toastEl.style.border = "1px solid rgba(18,20,32,.12)";
+        toastEl.style.borderRadius = "14px";
+        toastEl.style.boxShadow = "0 12px 34px rgba(18,20,32,.14)";
+        setTimeout(() => toastEl.remove(), 6000);
+      }
+    } catch {
+      // silencioso
+    }
+  }
+
   function convTitle(conv) {
     if (!conv) return "";
     const myId = meId();
@@ -683,6 +761,9 @@
 
     state.socket.on("chat:new_message", async ({ conversationId, message }) => {
       if (!conversationId || !message) return;
+
+      // pop-up preview (canto superior direito)
+      showIncomingToast({ conversationId, message });
 
       // adiciona
       upsertMessage(conversationId, message);
