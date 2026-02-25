@@ -1,3 +1,4 @@
+// src/services/authService.js
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { HttpError } = require("../utils/httpError");
@@ -10,7 +11,9 @@ function signToken(userId) {
 }
 
 async function login(email, senha) {
-  const user = await User.findOne({ email: String(email).toLowerCase().trim() });
+  const user = await User.findOne({ email: String(email).toLowerCase().trim() })
+    .populate("setor", "_id nome ativo");
+
   if (!user || !user.ativo) throw new HttpError(401, "E-mail ou senha inválidos");
 
   const ok = await bcrypt.compare(String(senha), user.senhaHash);
@@ -18,13 +21,18 @@ async function login(email, senha) {
 
   const token = signToken(user._id);
 
+  const setorId = user.setor ? String(user.setor._id || user.setor) : null;
+  const setorNome = user.setor?.nome ? String(user.setor.nome) : null;
+
   return {
     accessToken: token,
     user: {
       id: user._id,
       nome: user.nome,
       email: user.email,
-      role: user.role
+      role: user.role,
+      setor: setorId,      // ✅ necessário pro filtro "Meu setor"
+      setorNome: setorNome // opcional (melhor pra UI)
     }
   };
 }

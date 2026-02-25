@@ -1,3 +1,12 @@
+function escapeHtmlRole(r){
+  return String(r||"USER")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
 function userValidateTokenOrRedirect() {
   const me = API.getUser();
   const token = API.getToken();
@@ -7,7 +16,8 @@ function userValidateTokenOrRedirect() {
     return false;
   }
 
-  if (me.role !== "USER") {
+  const allowed = ["USER", "RESPONSAVEL"];
+  if (!allowed.includes(me.role)) {
     API.clearAuth();
     window.location.href = "/user/login.html";
     return false;
@@ -26,7 +36,7 @@ function userMountSidebar(activeKey = "dashboard") {
         <div class="brand-mark"></div>
         <div>
           <div class="brand-title">Maximum Help</div>
-          <div class="brand-sub">Painel do Usuário</div>
+          <div class="brand-sub">Painel do Usuário/Responsável</div>
         </div>
       </div>
 
@@ -34,7 +44,7 @@ function userMountSidebar(activeKey = "dashboard") {
         <div class="avatar">${(me.nome || "U").slice(0,1).toUpperCase()}</div>
         <div>
           <div class="profile-name">${me.nome || "Usuário"}</div>
-          <div class="profile-sub">Role: USER</div>
+          <div class="profile-sub">Role: ${escapeHtmlRole(me.role)}${me.role==="RESPONSAVEL" ? " • pode gerenciar chamados" : ""}</div>
         </div>
       </div>
     </div>

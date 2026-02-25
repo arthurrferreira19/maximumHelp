@@ -1,3 +1,4 @@
+// src/services/ticketService.js
 const mongoose = require("mongoose");
 const Ticket = require("../models/Ticket");
 const User = require("../models/User");
@@ -6,71 +7,94 @@ const { HttpError } = require("../utils/httpError");
 const { TICKET_STATUS, TICKET_PRIORITIES } = require("../utils/validators");
 
 function isValidId(id) {
-    return mongoose.isValidObjectId(id);
+  return mongoose.isValidObjectId(id);
+}
+
+function idOf(v) {
+  return String(v?._id || v?.id || v || "");
 }
 
 async function validateUser(id, allowedRoles = null) {
-    if (!isValidId(id)) throw new HttpError(400, "Usuário inválido");
-    const u = await User.findById(id).select("nome email role ativo setor");
-    if (!u || !u.ativo) throw new HttpError(400, "Usuário não encontrado ou inativo");
-    if (allowedRoles && !allowedRoles.includes(u.role)) {
-        throw new HttpError(400, `Usuário deve ter role: ${allowedRoles.join(", ")}`);
-    }
-    return u;
+  const uid = idOf(id);
+  if (!isValidId(uid)) throw new HttpError(400, "Usuário inválido");
+
+  const u = await User.findById(uid).select("nome email role ativo setor");
+  if (!u || !u.ativo) throw new HttpError(400, "Usuário não encontrado ou inativo");
+
+  if (allowedRoles && !allowedRoles.includes(u.role)) {
+    throw new HttpError(400, `Usuário deve ter role: ${allowedRoles.join(", ")}`);
+  }
+  return u;
 }
 
 async function validateSector(id) {
-    if (!isValidId(id)) throw new HttpError(400, "Setor inválido");
-    const s = await Sector.findById(id);
-    if (!s || !s.ativo) throw new HttpError(400, "Setor não encontrado ou inativo");
-    return s;
+  const sid = idOf(id);
+  if (!isValidId(sid)) throw new HttpError(400, "Setor inválido");
+
+  const s = await Sector.findById(sid);
+  if (!s || !s.ativo) throw new HttpError(400, "Setor não encontrado ou inativo");
+
+  return s;
 }
 
 function validateEnums({ status, prioridade }) {
-    if (status && !TICKET_STATUS.includes(status)) throw new HttpError(400, "Status inválido");
-    if (prioridade && !TICKET_PRIORITIES.includes(prioridade)) throw new HttpError(400, "Prioridade inválida");
+  if (status && !TICKET_STATUS.includes(status)) throw new HttpError(400, "Status inválido");
+  if (prioridade && !TICKET_PRIORITIES.includes(prioridade)) throw new HttpError(400, "Prioridade inválida");
 }
 
-function buildFilter(query) {
-    const filter = {};
-    const search = (query.search || "").trim();
-    const status = (query.status || "").trim();
-    const urgente = query.urgente;
-    const setor = (query.setor || "").trim();
-    const responsavel = (query.responsavel || "").trim();
+// Busca mais útil (título OU descrição OU solicitanteAberto)
+function buildFilter(query = {}) {
+  const filter = {};
 
-    if (search) filter.titulo = { $regex: search, $options: "i" };
-    if (status && TICKET_STATUS.includes(status)) filter.status = status;
-    if (urgente === "true") filter.urgente = true;
-    if (urgente === "false") filter.urgente = false;
-    if (setor && isValidId(setor)) filter.setor = setor;
-    if (responsavel && isValidId(responsavel)) filter.responsavel = responsavel;
+  const search = String(query.search || "").trim();
+  const status = String(query.status || "").trim();
+  const urgente = query.urgente;
+  const setor = String(query.setor || "").trim();
+  const responsavel = String(query.responsavel || "").trim();
 
-    return filter;
+  if (search) {
+    filter.$or = [
+      { titulo: { $regex: search, $options: "i" } },
+      { descricao: { $regex: search, $options: "i" } },
+      { solicitanteAberto: { $regex: search, $options: "i" } }
+    ];
+  }
+
+  if (status && TICKET_STATUS.includes(status)) filter.status = status;
+
+  if (urgente === "true") filter.urgente = true;
+  if (urgente === "false") filter.urgente = false;
+
+  if (setor && isValidId(setor)) filter.setor = setor;
+  if (responsavel && isValidId(responsavel)) filter.responsavel = responsavel;
+
+  return filter;
 }
 
 async function list(query) {
-    const filter = buildFilter(query);
+  const filter = buildFilter(query);
 
-    const tickets = await Ticket.find(filter)
-        .populate("solicitante", "nome email role")
-        .populate("responsavel", "nome email role")
-        .populate("setor", "nome")
-        .sort({ createdAt: -1 });
+  const tickets = await Ticket.find(filter)
+    .populate("solicitante", "nome email role setor")
+    .populate("responsavel", "nome email role setor")
+    .populate("setor", "nome")
+    .sort({ createdAt: -1 });
 
-    return tickets;
+  return tickets;
 }
 
 async function getById(id) {
-    if (!isValidId(id)) throw new HttpError(400, "ID inválido");
-    const t = await Ticket.findById(id)
-        .populate("solicitante", "nome email role")
-        .populate("responsavel", "nome email role setor")
-        .populate("setor", "nome")
-        .populate("atualizacoes.autor", "nome email role");
+  const tid = idOf(id);
+  if (!isValidId(tid)) throw new HttpError(400, "ID inválido");
 
-    if (!t) throw new HttpError(404, "Chamado não encontrado");
-    return t;
+  const t = await Ticket.findById(tid)
+    .populate("solicitante", "nome email role setor")
+    .populate("responsavel", "nome email role setor")
+    .populate("setor", "nome")
+    .populate("atualizacoes.autor", "nome email role setor");
+
+  if (!t) throw new HttpError(404, "Chamado não encontrado");
+  return t;
 }
 
 /**
@@ -79,196 +103,250 @@ async function getById(id) {
  * - Senão, setor deve ser enviado (e válido/ativo)
  */
 async function resolveSectorByResponsavelOrPayload(responsavelId, setorId) {
-    // ✅ agora aceita USER também
-    const resp = await validateUser(responsavelId, ["ADMIN", "RESPONSAVEL", "USER"]);
+  const rid = idOf(responsavelId);
+  if (!rid) return null;
 
-    // ✅ se o usuário (responsável) tiver setor, usa automaticamente
-    if (resp.setor) return resp.setor;
+  // aceita USER também
+  const resp = await validateUser(rid, ["ADMIN", "RESPONSAVEL", "USER"]);
 
-    // fallback (caso alguém não tenha setor)
-    if (!setorId) return null;
-    const sec = await validateSector(setorId);
-    return sec._id;
+  // se o usuário (responsável) tiver setor, usa automaticamente
+  if (resp.setor) return idOf(resp.setor);
+
+  // fallback
+  const sid = idOf(setorId);
+  if (!sid) return null;
+
+  const sec = await validateSector(sid);
+  return idOf(sec._id);
 }
 
-
 async function create(payload) {
-    const {
-        titulo,
-        solicitanteAberto,
-        descricao,
-        prioridade,
-        urgente,
-        status,
-        prazoDias,
-        dataInicio,
-        dataFim,
-        solicitante,
-        responsavel,
-        setor,
-        anexos
-    } = payload;
+  const {
+    titulo,
+    solicitanteAberto,
+    descricao,
+    prioridade,
+    urgente,
+    status,
+    prazoDias,
+    dataInicio,
+    dataFim,
+    solicitante,
+    responsavel,
+    setor,
+    anexos
+  } = payload || {};
 
-        if (!solicitante || !responsavel) throw new HttpError(400, "Informe solicitante e responsável");
+  const solicitanteId = idOf(solicitante);
+  const responsavelId = idOf(responsavel);
 
-    validateEnums({ status, prioridade });
+  if (!solicitanteId || !responsavelId) {
+    throw new HttpError(400, "Informe solicitante e responsável");
+  }
 
-    await validateUser(solicitante, ["ADMIN", "USER", "RESPONSAVEL"]);
-    const setorFinal = await resolveSectorByResponsavelOrPayload(responsavel, setor);
+  validateEnums({ status, prioridade });
 
-    const ticket = await Ticket.create({
-        titulo: String(titulo || "Sem título").trim(),
-        solicitanteAberto: String(solicitanteAberto || "").trim(),
-        descricao: String(descricao || "").trim(),
-        prioridade: prioridade || "Média",
-        urgente: !!urgente,
-        status: status || "Pendente",
-        prazoDias: (typeof prazoDias === "number" && !Number.isNaN(prazoDias)) ? prazoDias : (prazoDias === null ? null : undefined),
-        dataInicio: dataInicio ? new Date(dataInicio) : new Date(),
-        dataFim: dataFim ? new Date(dataFim) : undefined,
-        solicitante,
-        responsavel,
-        setor: setorFinal,
-        anexos: Array.isArray(anexos) ? anexos : [],
-        atualizacoes: []
-    });
+  await validateUser(solicitanteId, ["ADMIN", "USER", "RESPONSAVEL"]);
+  const setorFinal = await resolveSectorByResponsavelOrPayload(responsavelId, setor);
 
-    return getById(ticket._id);
+  const prazoParsed =
+    typeof prazoDias === "number" && !Number.isNaN(prazoDias)
+      ? prazoDias
+      : (prazoDias === null ? null : undefined);
+
+  const ticket = await Ticket.create({
+    titulo: String(titulo || "Sem título").trim(),
+    solicitanteAberto: String(solicitanteAberto || "").trim(),
+    descricao: String(descricao || "").trim(),
+    prioridade: prioridade || "Média",
+    urgente: !!urgente,
+    status: status || "Pendente",
+    prazoDias: prazoParsed,
+    dataInicio: dataInicio ? new Date(dataInicio) : new Date(),
+    dataFim: dataFim ? new Date(dataFim) : undefined,
+    solicitante: solicitanteId,
+    responsavel: responsavelId,
+    setor: setorFinal || undefined,
+    anexos: Array.isArray(anexos) ? anexos : [],
+    atualizacoes: []
+  });
+
+  return getById(ticket._id);
 }
 
 async function update(id, payload) {
-    if (!isValidId(id)) throw new HttpError(400, "ID inválido");
-    const ticket = await Ticket.findById(id);
-    if (!ticket) throw new HttpError(404, "Chamado não encontrado");
+  const tid = idOf(id);
+  if (!isValidId(tid)) throw new HttpError(400, "ID inválido");
 
-    const {
-        titulo,
-        solicitanteAberto,
-        descricao,
-        prioridade,
-        urgente,
-        status,
-        prazoDias,
-        dataInicio,
-        dataFim,
-        solicitante,
-        responsavel,
-        setor
-    } = payload;
+  const ticket = await Ticket.findById(tid);
+  if (!ticket) throw new HttpError(404, "Chamado não encontrado");
 
-    validateEnums({ status, prioridade });
+  const {
+    titulo,
+    solicitanteAberto,
+    descricao,
+    prioridade,
+    urgente,
+    status,
+    prazoDias,
+    dataInicio,
+    dataFim,
+    solicitante,
+    responsavel,
+    setor
+  } = payload || {};
 
-    if (titulo !== undefined) ticket.titulo = String(titulo).trim();
-    if (solicitanteAberto !== undefined) ticket.solicitanteAberto = String(solicitanteAberto || '').trim();
-    if (descricao !== undefined) ticket.descricao = String(descricao).trim();
-    if (prioridade !== undefined) ticket.prioridade = prioridade;
-    if (urgente !== undefined) ticket.urgente = !!urgente;
-    if (status !== undefined) ticket.status = status;
-    if (dataInicio !== undefined) ticket.dataInicio = new Date(dataInicio);
-    if (dataFim !== undefined) ticket.dataFim = new Date(dataFim);
+  validateEnums({ status, prioridade });
 
-    if (solicitante !== undefined) {
-        await validateUser(solicitante, ["ADMIN", "USER", "RESPONSAVEL"]);
-        ticket.solicitante = solicitante;
-    }
+  if (titulo !== undefined) ticket.titulo = String(titulo).trim();
+  if (solicitanteAberto !== undefined) ticket.solicitanteAberto = String(solicitanteAberto || "").trim();
+  if (descricao !== undefined) ticket.descricao = String(descricao).trim();
+  if (prioridade !== undefined) ticket.prioridade = prioridade;
+  if (urgente !== undefined) ticket.urgente = !!urgente;
+  if (status !== undefined) ticket.status = status;
 
-    if (responsavel !== undefined) {
-        const setorFinal = await resolveSectorByResponsavelOrPayload(responsavel, setor);
-        ticket.responsavel = responsavel;
-        ticket.setor = setorFinal;
-    } else if (setor !== undefined) {
-        // Se não mudou responsável, pode mudar setor manualmente se quiser
-        const sec = await validateSector(setor);
-        ticket.setor = sec._id;
-    }
+  if (prazoDias !== undefined) {
+    if (prazoDias === null) ticket.prazoDias = null;
+    else if (typeof prazoDias === "number" && !Number.isNaN(prazoDias)) ticket.prazoDias = prazoDias;
+  }
 
-    await ticket.save();
-    return getById(ticket._id);
+  if (dataInicio !== undefined) ticket.dataInicio = new Date(dataInicio);
+  if (dataFim !== undefined) ticket.dataFim = new Date(dataFim);
+
+  if (solicitante !== undefined) {
+    const solicitanteId = idOf(solicitante);
+    await validateUser(solicitanteId, ["ADMIN", "USER", "RESPONSAVEL"]);
+    ticket.solicitante = solicitanteId;
+  }
+
+  // Se mudou responsável, setor é recalculado automaticamente
+  if (responsavel !== undefined) {
+    const responsavelId = idOf(responsavel);
+    const setorFinal = await resolveSectorByResponsavelOrPayload(responsavelId, setor);
+    ticket.responsavel = responsavelId;
+    ticket.setor = setorFinal || undefined;
+  } else if (setor !== undefined) {
+    // se não mudou responsável, pode mudar setor manualmente
+    const sec = await validateSector(setor);
+    ticket.setor = idOf(sec._id);
+  }
+
+  await ticket.save();
+  return getById(ticket._id);
 }
 
 async function updateStatus(id, status) {
-    if (!isValidId(id)) throw new HttpError(400, "ID inválido");
-    if (!TICKET_STATUS.includes(status)) throw new HttpError(400, "Status inválido");
+  const tid = idOf(id);
+  if (!isValidId(tid)) throw new HttpError(400, "ID inválido");
 
-    const ticket = await Ticket.findById(id);
-    if (!ticket) throw new HttpError(404, "Chamado não encontrado");
+  if (!TICKET_STATUS.includes(status)) throw new HttpError(400, "Status inválido");
 
-    ticket.status = status;
-    await ticket.save();
-    return getById(ticket._id);
+  const ticket = await Ticket.findById(tid);
+  if (!ticket) throw new HttpError(404, "Chamado não encontrado");
+
+  ticket.status = status;
+  await ticket.save();
+  return getById(ticket._id);
 }
 
 async function remove(id) {
-    if (!isValidId(id)) throw new HttpError(400, "ID inválido");
-    const t = await Ticket.findById(id);
-    if (!t) throw new HttpError(404, "Chamado não encontrado");
-    await Ticket.deleteOne({ _id: id });
+  const tid = idOf(id);
+  if (!isValidId(tid)) throw new HttpError(400, "ID inválido");
+
+  const t = await Ticket.findById(tid);
+  if (!t) throw new HttpError(404, "Chamado não encontrado");
+
+  await Ticket.deleteOne({ _id: tid });
 }
 
 async function addUpdate(id, { autor, mensagem, anexo }) {
-    if (!isValidId(id)) throw new HttpError(400, "ID inválido");
-    await validateUser(autor, ["ADMIN", "USER", "RESPONSAVEL"]);
+  const tid = idOf(id);
+  if (!isValidId(tid)) throw new HttpError(400, "ID inválido");
 
-    const ticket = await Ticket.findById(id);
-    if (!ticket) throw new HttpError(404, "Chamado não encontrado");
+  const autorId = idOf(autor);
+  await validateUser(autorId, ["ADMIN", "USER", "RESPONSAVEL"]);
 
-    ticket.atualizacoes.push({
-        autor,
-        mensagem: String(mensagem).trim(),
-        anexo: anexo ? String(anexo).trim() : null
-    });
+  const ticket = await Ticket.findById(tid);
+  if (!ticket) throw new HttpError(404, "Chamado não encontrado");
 
-    await ticket.save();
-    return getById(ticket._id);
+  ticket.atualizacoes.push({
+    autor: autorId,
+    mensagem: String(mensagem).trim(),
+    anexo: anexo ? String(anexo).trim() : null
+  });
+
+  await ticket.save();
+  return getById(ticket._id);
 }
 
 async function listBySolicitante(userId, query) {
-    const filter = buildFilter(query);
-    filter.solicitante = userId;
+  const uid = idOf(userId);
+  const filter = buildFilter(query);
+  filter.solicitante = uid;
 
-    const tickets = await Ticket.find(filter)
-        .populate("solicitante", "nome email role")
-        .populate("responsavel", "nome email role")
-        .populate("setor", "nome")
-        .sort({ createdAt: -1 });
+  const tickets = await Ticket.find(filter)
+    .populate("solicitante", "nome email role setor")
+    .populate("responsavel", "nome email role setor")
+    .populate("setor", "nome")
+    .sort({ createdAt: -1 });
 
-    return tickets;
+  return tickets;
 }
 
 async function listByResponsavel(userId, query) {
-    const filter = buildFilter(query);
-    filter.responsavel = userId;
+  const uid = idOf(userId);
+  const filter = buildFilter(query);
+  filter.responsavel = uid;
 
-    const tickets = await Ticket.find(filter)
-        .populate("solicitante", "nome email role")
-        .populate("responsavel", "nome email role")
-        .populate("setor", "nome")
-        .sort({ createdAt: -1 });
+  const tickets = await Ticket.find(filter)
+    .populate("solicitante", "nome email role setor")
+    .populate("responsavel", "nome email role setor")
+    .populate("setor", "nome")
+    .sort({ createdAt: -1 });
 
-    return tickets;
+  return tickets;
 }
 
-
 async function addAttachments(id, anexos) {
-    if (!isValidId(id)) throw new HttpError(400, "ID inválido");
-    const ticket = await Ticket.findById(id);
-    if (!ticket) throw new HttpError(404, "Chamado não encontrado");
+  const tid = idOf(id);
+  if (!isValidId(tid)) throw new HttpError(400, "ID inválido");
 
-    ticket.anexos = [...(ticket.anexos || []), ...(Array.isArray(anexos) ? anexos : [])];
-    await ticket.save();
+  const ticket = await Ticket.findById(tid);
+  if (!ticket) throw new HttpError(404, "Chamado não encontrado");
 
-    return getById(ticket._id);
+  ticket.anexos = [...(ticket.anexos || []), ...(Array.isArray(anexos) ? anexos : [])];
+  await ticket.save();
+
+  return getById(ticket._id);
+}
+
+async function listBySector(sectorId, query) {
+  const filter = buildFilter(query);
+
+  const sid = idOf(sectorId);
+  if (!isValidId(sid)) throw new HttpError(400, "Setor inválido");
+
+  filter.setor = sid;
+
+  const tickets = await Ticket.find(filter)
+    .populate("solicitante", "nome email role setor")
+    .populate("responsavel", "nome email role setor")
+    .populate("setor", "nome")
+    .sort({ createdAt: -1 });
+
+  return tickets;
 }
 
 module.exports = {
-    list,
-    getById,
-    create,
-    addAttachments,
-    update,
-    updateStatus,
-    remove,
-    addUpdate,
-    listBySolicitante,
-    listByResponsavel
+  list,
+  getById,
+  create,
+  update,
+  updateStatus,
+  remove,
+  addUpdate,
+  listBySolicitante,
+  listByResponsavel,
+  listBySector,
+  addAttachments
 };

@@ -1,11 +1,15 @@
+// src/utils/validators.js
 const ALLOWED_ROLES = ["ADMIN", "USER", "RESPONSAVEL"];
 
 const TICKET_STATUS = [
   "Pendente",
   "Em Andamento",
-  "Aguardando Responsável",
   "Aguardando Solicitante",
-  "Concluído"
+  "Aguardando Fornecedor",
+  "Concluído",
+
+  // legado (para não quebrar dados antigos)
+  "Aguardando Responsável"
 ];
 
 const TICKET_PRIORITIES = ["Baixa", "Média", "Alta"];

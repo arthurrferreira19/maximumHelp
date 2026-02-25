@@ -16,7 +16,7 @@
 
     <!-- Main -->
     <section class="main">
-      <!-- Topbar padrão -->
+      <!-- Topbar -->
       <div class="topbar fade-in">
         <div class="d-flex align-items-center gap-2">
           <button class="sidebar-toggle" id="btnSidebarToggle" type="button">
@@ -26,6 +26,16 @@
         </div>
 
         <div class="topbar-actions d-flex align-items-center gap-2">
+          <button class="btn btn-outline-secondary btn-sm" id="btnTour" type="button" title="Tour guiado">
+            <i data-lucide="help-circle" style="width:16px;height:16px;"></i>
+            Como funciona
+          </button>
+
+          <button class="btn btn-outline-secondary btn-sm" id="btnToggleView" type="button" title="Alternar visão">
+            <i data-lucide="columns-3" style="width:16px;height:16px;"></i>
+            Kanban
+          </button>
+
           <button class="btn btn-outline-secondary btn-sm" id="btnRefresh" type="button">
             <i data-lucide="refresh-cw" style="width:16px;height:16px;"></i>
             Atualizar
@@ -38,16 +48,22 @@
         </div>
       </div>
 
-      <!-- Content (somente aqui muda) -->
+      <!-- Content -->
       <div class="container-fluid py-4">
-        <div id="pageAlert" class="mb-3"></div>
+        <div id="pageAlert" class="mb-3 d-none"></div>
 
         <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
-          <div class="d-flex flex-wrap gap-2 align-items-center">
-            <!-- view toggle removido (somente lista) -->
+          <div class="d-flex flex-wrap gap-2 align-items-center" id="tourFilters">
+            <!-- NOVO: scope mine/sector -->
+            <select class="form-select form-select-sm" id="scopeFilter" style="width: 210px;">
+              <option value="mine">Somente meus</option>
+              <option value="sector">Meu setor</option>
+            </select>
 
             <div class="input-group input-group-sm" style="width: 320px;">
-              <span class="input-group-text"><i data-lucide="search" style="width:16px;height:16px;"></i></span>
+              <span class="input-group-text">
+                <i data-lucide="search" style="width:16px;height:16px;"></i>
+              </span>
               <input class="form-control" id="q" placeholder="Buscar por título, descrição, solicitante..." />
             </div>
 
@@ -62,9 +78,13 @@
             </select>
           </div>
 
-          <button class="btn btn-marsala" id="btnOpenCreate" type="button">
-            <i data-lucide="plus" style="width:16px;height:16px;"></i>
-            Novo chamado
+          <!-- Botão premium -->
+          <button class="btn btn-new-ticket" id="btnOpenCreate" type="button">
+            <span class="btn-new-ticket-ico">
+              <i data-lucide="plus" style="width:16px;height:16px;"></i>
+            </span>
+            <span class="btn-new-ticket-txt">Novo chamado</span>
+            <span class="btn-new-ticket-shine" aria-hidden="true"></span>
           </button>
         </div>
 
@@ -78,7 +98,11 @@
 
           <div id="ticketsGrid" class="tickets-grid"></div>
         </div>
-</div>
+
+        <!-- KANBAN -->
+        <div id="kanbanView" class="fade-in d-none">
+          <div id="kanbanBoard" class="mh-kanban"></div>
+        </div>
       </div>
     </section>
   </div>
@@ -86,65 +110,89 @@
   <!-- Modal: Criar/Editar -->
   <div class="modal fade" id="modalTicket" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-      <div class="modal-content">
+      <div class="modal-content" id="ticketModalContent">
         <div class="modal-header">
           <h5 class="modal-title" id="modalTicketTitle">Novo chamado</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
         </div>
+
         <div class="modal-body">
           <div id="createErr" class="text-danger small mb-2 d-none"></div>
 
+          <div id="urgentAlert" class="alert alert-danger d-none" style="border-radius:14px;">
+            <div class="d-flex align-items-start gap-2">
+              <i data-lucide="alert-triangle" style="width:18px;height:18px;"></i>
+              <div>
+                <div style="font-weight:900;">Chamado marcado como URGENTE</div>
+                <div class="small">Isso prioriza o atendimento. Verifique se realmente precisa.</div>
+              </div>
+            </div>
+          </div>
+
           <form id="ticketForm">
             <div class="row g-3">
-              <div class="col-12">
+              <div class="col-12" id="tourTitulo">
                 <label class="form-label">Título</label>
-                <input id="fTitulo" class="form-control" maxlength="120" placeholder="Ex: Solicitação / Problema..." />
+                <input id="fTitulo" class="form-control" maxlength="120" placeholder="Ex: Erro no sistema / Solicitação..." />
               </div>
 
-              <div class="col-12">
-                <label class="form-label">Solicitante (campo aberto - opcional)</label>
-                <input id="fSolicitanteAberto" class="form-control" maxlength="80" placeholder="Ex: Cliente X, Filial Y..." />
+              <div class="col-12" id="tourSolicitante">
+                <label class="form-label">Solicitante</label>
+                <input id="fSolicitanteAberto" class="form-control" maxlength="80" placeholder="Ex: Arthur Ferreira" autocomplete="off" />
+                <div class="form-text">Por padrão vem quem abriu, mas você pode apagar e digitar outro nome.</div>
               </div>
 
-              <div class="col-12">
+              <div class="col-12" id="tourDescricao">
                 <label class="form-label">Descrição</label>
                 <textarea id="fDescricao" class="form-control" rows="4" placeholder="Descreva com detalhes..."></textarea>
               </div>
 
-              <div class="col-md-5">
+              <div class="col-md-6" id="tourStatus">
                 <label class="form-label">Status</label>
                 <select id="fStatus" class="form-select">
                   <option value="Pendente">Pendente</option>
                   <option value="Em Andamento">Em Andamento</option>
-                  <option value="Aguardando Responsável">Aguardando Responsável</option>
                   <option value="Aguardando Solicitante">Aguardando Solicitante</option>
+                  <option value="Aguardando Fornecedor">Aguardando Fornecedor</option>
                   <option value="Concluído">Concluído</option>
                 </select>
               </div>
 
-              <div class="col-md-4">
-                <label class="form-label">Urgente</label>
-                <select id="fUrgente" class="form-select">
+              <div class="col-md-3" id="tourUrgente">
+                <label class="form-label d-flex align-items-center justify-content-between">
+                  <span>Urgente</span>
+                  <span id="urgentPill" class="badge text-bg-secondary">Não</span>
+                </label>
+
+                <div class="mh-toggle">
+                  <input class="mh-toggle-input" type="checkbox" id="fUrgenteToggle">
+                  <label class="mh-toggle-label" for="fUrgenteToggle">
+                    <span class="mh-toggle-knob"></span>
+                  </label>
+                </div>
+
+                <select id="fUrgente" class="d-none">
                   <option value="false">Não</option>
                   <option value="true">Sim</option>
                 </select>
               </div>
 
-              <div class="col-md-3">
-                <label class="form-label">Prazo (em dias)</label>
+              <div class="col-md-3" id="tourPrazo">
+                <label class="form-label">Prazo estimado (dias)</label>
                 <input id="fPrazoDias" type="number" class="form-control" min="0" step="1" placeholder="Ex: 3" />
               </div>
 
-              <div class="col-12">
+              <div class="col-12" id="tourAnexos">
                 <label class="form-label">Anexos</label>
                 <input id="fFiles" class="form-control" type="file" multiple />
-                <div class="form-text">Arquivos são salvos em <code>/uploads/tickets</code> e o banco guarda somente metadados.</div>
+                <div class="form-text">Selecione os anexos antes de salvar (você verá os nomes abaixo).</div>
                 <div id="selectedFiles" class="mt-2 small text-muted"></div>
               </div>
             </div>
           </form>
         </div>
-        <div class="modal-footer">
+
+        <div class="modal-footer" id="tourSalvar">
           <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">Cancelar</button>
           <button class="btn btn-marsala" id="btnSaveTicket" type="button">Salvar</button>
         </div>
@@ -173,9 +221,7 @@
 
   <script src="/assets/js/api.js"></script>
   <script src="/assets/js/userCommon.js"></script>
-<script src="/assets/js/chamadosUser.js"></script>
+  <script src="/assets/js/chamadosUser.js"></script>
   <script src="/assets/js/partials.js"></script>
-
-  
 </body>
 </html>

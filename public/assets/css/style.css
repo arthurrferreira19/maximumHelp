@@ -974,3 +974,393 @@ body{
   background: rgba(255,255,255,.92);
   backdrop-filter: blur(10px);
 }
+
+/* =======================
+   TOUR GUIADO (BALÕES)
+======================= */
+.mh-tour-overlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(2,6,23,.55);
+  backdrop-filter: blur(2px);
+  z-index: 9998;
+}
+.mh-tour-highlight{
+  position: relative;
+  z-index: 9999 !important;
+  box-shadow: 0 0 0 6px rgba(255,255,255,.20), 0 0 0 9999px rgba(2,6,23,.55);
+  border-radius: 14px;
+}
+.mh-tour-pop{
+  position: fixed;
+  z-index: 10000;
+  width: min(420px, calc(100vw - 28px));
+  background: rgba(255,255,255,.96);
+  border: 1px solid rgba(15,23,42,.12);
+  border-radius: 16px;
+  box-shadow: 0 18px 60px rgba(2,6,23,.25);
+  padding: 14px 14px 12px 14px;
+}
+.mh-tour-pop .mh-tour-top{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap: 10px;
+}
+.mh-tour-pop .mh-tour-title{
+  font-weight: 900;
+  color:#0f172a;
+  font-size: 14px;
+  line-height: 1.2;
+}
+.mh-tour-pop .mh-tour-step{
+  font-size: 12px;
+  color:#64748b;
+  font-weight: 800;
+}
+.mh-tour-pop .mh-tour-text{
+  margin-top: 8px;
+  font-size: 13px;
+  color:#0f172a;
+  line-height: 1.45;
+}
+.mh-tour-pop .mh-tour-actions{
+  margin-top: 12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+}
+.mh-tour-pop .mh-tour-actions .btn{
+  border-radius: 12px;
+}
+.mh-tour-arrow{
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: rgba(255,255,255,.96);
+  border-left: 1px solid rgba(15,23,42,.12);
+  border-top: 1px solid rgba(15,23,42,.12);
+  transform: rotate(45deg);
+}
+
+/* =======================
+   TOGGLE URGENTE (LIGA/DESLIGA)
+======================= */
+.mh-toggle{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.mh-toggle-input{
+  position:absolute;
+  opacity:0;
+  pointer-events:none;
+}
+.mh-toggle-label{
+  width: 54px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(15,23,42,.12);
+  border: 1px solid rgba(15,23,42,.14);
+  position: relative;
+  cursor: pointer;
+  transition: .2s ease;
+}
+.mh-toggle-knob{
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: #fff;
+  position:absolute;
+  top: 50%;
+  left: 3px;
+  transform: translateY(-50%);
+  box-shadow: 0 10px 22px rgba(2,6,23,.18);
+  transition: .2s ease;
+}
+.mh-toggle-input:checked + .mh-toggle-label{
+  background: rgba(220,38,38,.18);
+  border-color: rgba(220,38,38,.35);
+}
+.mh-toggle-input:checked + .mh-toggle-label .mh-toggle-knob{
+  left: 27px;
+}
+
+/* estado urgente no modal */
+.mh-urgent-modal{
+  outline: 2px solid rgba(220,38,38,.35);
+  box-shadow: 0 18px 60px rgba(220,38,38,.12);
+  border-radius: 16px;
+}
+
+/* =======================
+   BOTÃO NOVO CHAMADO (premium)
+======================= */
+.btn-new-ticket{
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(127,29,29,.22);
+  background: linear-gradient(135deg, rgba(127,29,29,.92), rgba(180,43,43,.92));
+  color: #fff !important;
+  font-weight: 900;
+  letter-spacing: .2px;
+  box-shadow: 0 14px 40px rgba(127,29,29,.22);
+  transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
+  overflow: hidden;
+}
+.btn-new-ticket:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 18px 54px rgba(127,29,29,.28);
+  filter: brightness(1.02);
+}
+.btn-new-ticket:active{ transform: translateY(0px) scale(.99); }
+.btn-new-ticket-ico{
+  width: 30px;
+  height: 30px;
+  border-radius: 12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background: rgba(255,255,255,.16);
+  border: 1px solid rgba(255,255,255,.22);
+}
+.btn-new-ticket-shine{
+  position:absolute;
+  inset:-40px;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.28), transparent 55%);
+  transform: translateX(-30%);
+  opacity: .8;
+  pointer-events:none;
+}
+
+/* =======================
+   CARDS (lista) - mais premium
+======================= */
+.mh-card.ticket-card{
+  border-radius: 18px;
+  border: 1px solid rgba(15,23,42,.10);
+  background: rgba(255,255,255,.95);
+  box-shadow: 0 14px 40px rgba(2,6,23,.08);
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+.mh-card.ticket-card:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 18px 54px rgba(2,6,23,.10);
+  border-color: rgba(127,29,29,.18);
+}
+.ticket-card.is-urgent{
+  border-color: rgba(220,38,38,.35);
+  box-shadow: 0 18px 60px rgba(220,38,38,.10);
+}
+.urgent-chip{
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: rgba(220,38,38,.12);
+  color: #b91c1c;
+  border: 1px solid rgba(220,38,38,.25);
+  font-weight: 900;
+}
+.mh-chipbar{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  margin-top: 8px;
+}
+
+/* =======================
+   KANBAN
+======================= */
+.mh-kanban{
+  width: 100%;
+}
+.mh-kanban-row{
+  display:grid;
+  gap: 12px;
+  grid-template-columns: repeat(5, minmax(240px, 1fr));
+  overflow-x: auto;
+  padding-bottom: 10px;
+}
+.mh-kanban-col{
+  background: rgba(248,250,252,.85);
+  border: 1px solid rgba(15,23,42,.08);
+  border-radius: 18px;
+  padding: 10px;
+  min-height: 420px;
+}
+.mh-kanban-col-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 10px;
+  padding: 6px 6px 10px 6px;
+}
+.mh-kanban-col-title{
+  display:flex;
+  align-items:center;
+  gap: 8px;
+  font-weight: 900;
+  color:#0f172a;
+}
+.mh-kanban-col-title .dot{
+  width: 10px; height:10px; border-radius:999px;
+  background: rgba(127,29,29,.75);
+}
+.mh-kanban-count{
+  font-size: 12px;
+  font-weight: 900;
+  color:#0f172a;
+  background:#fff;
+  border: 1px solid rgba(15,23,42,.10);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+.mh-kanban-drop{
+  min-height: 360px;
+  border-radius: 14px;
+  padding: 8px;
+  transition: background .15s ease, outline .15s ease;
+}
+.mh-kanban-drop.is-over{
+  outline: 2px dashed rgba(127,29,29,.35);
+  background: rgba(127,29,29,.05);
+}
+.mh-kanban-empty{
+  color:#64748b;
+  font-size: 13px;
+  font-weight: 800;
+  text-align:center;
+  padding: 18px 10px;
+  border-radius: 14px;
+  border: 1px dashed rgba(15,23,42,.16);
+  background: rgba(255,255,255,.7);
+}
+
+/* cartão do kanban */
+.mh-kcard{
+  background: rgba(255,255,255,.96);
+  border: 1px solid rgba(15,23,42,.10);
+  border-radius: 16px;
+  padding: 10px 10px;
+  margin-bottom: 10px;
+  box-shadow: 0 12px 34px rgba(2,6,23,.08);
+  cursor: grab;
+  transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease;
+}
+.mh-kcard:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 16px 46px rgba(2,6,23,.10);
+  border-color: rgba(127,29,29,.18);
+}
+.mh-kcard.is-dragging{
+  opacity: .75;
+  transform: rotate(-0.6deg) scale(1.01);
+}
+.mh-kcard.is-urgent{
+  border-color: rgba(220,38,38,.35);
+  box-shadow: 0 16px 52px rgba(220,38,38,.10);
+}
+.mh-kcard-top{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap: 10px;
+}
+.mh-kcard-title{
+  margin-top: 8px;
+  font-weight: 950;
+  color:#0f172a;
+  font-size: 14px;
+  line-height: 1.2;
+}
+.mh-kcard-sub{
+  margin-top: 6px;
+  color:#64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+.mh-kcard-foot{
+  margin-top: 10px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 8px;
+}
+.mh-badge-danger{
+  display:inline-flex;
+  align-items:center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(220,38,38,.12);
+  border: 1px solid rgba(220,38,38,.25);
+  color:#b91c1c;
+  font-weight: 950;
+  font-size: 12px;
+}
+
+/* =======================
+   CORES DE STATUS
+   Pendente (Amarelo)
+   Em Andamento (Azul)
+   Aguardando Solicitante (Rosa)
+   Aguardando Fornecedor (Roxo)
+   Concluído (Verde)
+======================= */
+
+.badge-status{
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-weight: 900;
+  border: 1px solid rgba(15,23,42,.12);
+}
+
+/* Pendente - amarelo */
+.badge-status.st-pendente{
+  background: rgba(234,179,8,.16);
+  color: #92400e;
+  border-color: rgba(234,179,8,.28);
+}
+
+/* Em andamento - azul */
+.badge-status.st-andamento{
+  background: rgba(59,130,246,.16);
+  color: #1d4ed8;
+  border-color: rgba(59,130,246,.28);
+}
+
+/* Aguardando solicitante - rosa */
+.badge-status.st-sol{
+  background: rgba(236,72,153,.16);
+  color: #be185d;
+  border-color: rgba(236,72,153,.28);
+}
+
+/* Aguardando fornecedor - roxo */
+.badge-status.st-forn{
+  background: rgba(168,85,247,.16);
+  color: #6d28d9;
+  border-color: rgba(168,85,247,.28);
+}
+
+/* Concluído - verde */
+.badge-status.st-conc{
+  background: rgba(34,197,94,.16);
+  color: #15803d;
+  border-color: rgba(34,197,94,.28);
+}
+
+/* Dot do Kanban com as mesmas classes */
+.mh-kanban-col-title .dot{
+  width: 10px; height: 10px; border-radius: 999px;
+  background: rgba(100,116,139,.6);
+}
+.mh-kanban-col-title .dot.st-pendente{ background: rgba(234,179,8,.9); }
+.mh-kanban-col-title .dot.st-andamento{ background: rgba(59,130,246,.9); }
+.mh-kanban-col-title .dot.st-sol{ background: rgba(236,72,153,.9); }
+.mh-kanban-col-title .dot.st-forn{ background: rgba(168,85,247,.9); }
+.mh-kanban-col-title .dot.st-conc{ background: rgba(34,197,94,.9); }

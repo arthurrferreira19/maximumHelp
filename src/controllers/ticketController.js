@@ -1,214 +1,231 @@
+// src/controllers/ticketController.js
 const { asyncHandler } = require("../utils/asyncHandler");
 const { HttpError } = require("../utils/httpError");
 const ticketService = require("../services/ticketService");
 
 function isAdmin(user) {
-    return user?.role === "ADMIN";
+  return user?.role === "ADMIN";
 }
 function isUser(user) {
-    return user?.role === "USER";
+  return user?.role === "USER";
 }
 function isResponsavel(user) {
-    return user?.role === "RESPONSAVEL";
+  return user?.role === "RESPONSAVEL";
+}
+function isStaff(user) {
+  return isUser(user) || isResponsavel(user);
 }
 
+function idOf(v) {
+  return String(v?._id || v?.id || v || "");
+}
 
 function filesToMeta(req) {
-    const files = Array.isArray(req.files) ? req.files : [];
-    return files.map(f => ({
-        originalName: f.originalname,
-        filename: f.filename,
-        mimetype: f.mimetype,
-        size: f.size,
-        url: `/uploads/tickets/${f.filename}`,
-        uploadedAt: new Date()
-    }));
+  const files = Array.isArray(req.files) ? req.files : [];
+  return files.map((f) => ({
+    originalName: f.originalname,
+    filename: f.filename,
+    mimetype: f.mimetype,
+    size: f.size,
+    url: `/uploads/tickets/${f.filename}`,
+    uploadedAt: new Date(),
+  }));
+}
+
+function canAccessTicket(me, ticket, { scope = "mine" } = {}) {
+  if (isAdmin(me)) return true;
+
+  const myId = idOf(me?._id);
+  const sid = idOf(ticket?.solicitante);
+  const rid = idOf(ticket?.responsavel);
+  const mySector = idOf(me?.setor);
+  const tSector = idOf(ticket?.setor);
+
+  // mine: solicitante OU responsável
+  if (scope !== "sector") return sid === myId || rid === myId;
+
+  // sector: setor do ticket == setor do usuário
+  if (!mySector) return false;
+  return tSector === mySector;
+}
+
+function canManageTicket(me, ticket) {
+  if (isAdmin(me)) return true;
+  if (!isStaff(me)) return false;
+
+  const myId = idOf(me?._id);
+  const sid = idOf(ticket?.solicitante);
+  const rid = idOf(ticket?.responsavel);
+
+  // “mesmas coisas do user”: gerencia se for solicitante OU responsável
+  return sid === myId || rid === myId;
 }
 
 const list = asyncHandler(async (req, res) => {
-    const me = req.user;
+  const me = req.user;
+  const scope = String(req.query.scope || "mine").toLowerCase(); // mine | sector
 
-    // ADMIN: lista tudo com filtros normais
-    if (isAdmin(me)) {
-        const data = await ticketService.list(req.query);
-        return res.json(data);
-    }
+  // ADMIN: lista tudo
+  if (isAdmin(me)) {
+    const data = await ticketService.list(req.query);
+    return res.json(data);
+  }
 
-    // USER: lista somente os próprios
-    if (isUser(me)) {
-        const data = await ticketService.listBySolicitante(me._id, req.query);
-        return res.json(data);
-    }
+  // USER/RESPONSAVEL
+  if (!isStaff(me)) throw new HttpError(403, "Permissão insuficiente");
 
-    // RESPONSAVEL: lista somente atribuídos a ele
-    if (isResponsavel(me)) {
-        const data = await ticketService.listByResponsavel(me._id, req.query);
-        return res.json(data);
-    }
+  // ✅ sector: ver todos do setor (colegas)
+  if (scope === "sector") {
+    const sectorId = idOf(me?.setor);
+    if (!sectorId) throw new HttpError(400, "Seu usuário não possui setor definido");
 
-    throw new HttpError(403, "Permissão insuficiente");
+    // garante que o service receba ID (string)
+    const data = await ticketService.listBySector(sectorId, req.query);
+    return res.json(data);
+  }
+
+  // ✅ mine: comportamento original
+  if (isUser(me)) {
+    const data = await ticketService.listBySolicitante(me._id, req.query);
+    return res.json(data);
+  }
+
+  // RESPONSAVEL: lista os atribuídos a ele (mine)
+  const data = await ticketService.listByResponsavel(me._id, req.query);
+  return res.json(data);
 });
 
 const getById = asyncHandler(async (req, res) => {
-    const me = req.user;
-    const t = await ticketService.getById(req.params.id);
+  const me = req.user;
+  const t = await ticketService.getById(req.params.id);
 
-    if (isAdmin(me)) return res.json(t);
+  // permite abrir via setor também se passar ?scope=sector
+  const scope = String(req.query.scope || "mine").toLowerCase();
+  if (canAccessTicket(me, t, { scope })) return res.json(t);
 
-    // USER pode ver se for solicitante
-    if (isUser(me) && String(t.solicitante?._id || t.solicitante) === String(me._id)) {
-        return res.json(t);
-    }
-
-    // RESPONSAVEL pode ver se for responsável
-    if (isResponsavel(me) && String(t.responsavel?._id || t.responsavel) === String(me._id)) {
-        return res.json(t);
-    }
-
-    throw new HttpError(403, "Você não tem acesso a esse chamado");
+  throw new HttpError(403, "Você não tem acesso a esse chamado");
 });
 
 const create = asyncHandler(async (req, res) => {
-    const me = req.user;
-    const payload = req.body || {};
+  const me = req.user;
 
-    // anexos (multipart/form-data)
-    const anexos = filesToMeta(req);
+  // ADMIN, USER e RESPONSAVEL podem criar
+  if (!isAdmin(me) && !isStaff(me)) {
+    throw new HttpError(403, "Sem permissão para criar chamado");
+  }
 
-    // ✅ USER: solicitante e responsável = ele mesmo
-    if (me.role === "USER") {
-        payload.solicitante = me._id;
-        payload.responsavel = me._id;
+  // Defaults para USER/RESP (admin pode definir tudo)
+  if (!isAdmin(me)) {
+    req.body.solicitante = me._id;
 
-        if (!payload.status) payload.status = "Pendente";
-
-        // prazoDias é numérico
-        if (payload.prazoDias !== undefined && payload.prazoDias !== null && payload.prazoDias !== "") {
-            payload.prazoDias = Number(payload.prazoDias);
-        } else {
-            payload.prazoDias = null;
-        }
-
-        payload.anexos = anexos;
-
-        const created = await ticketService.create(payload);
-        return res.status(201).json(created);
+    // ✅ MUITO IMPORTANTE:
+    // - USER cria chamado como solicitante; NÃO força responsavel
+    // - RESPONSAVEL pode criar já como responsável (mantém seu fluxo)
+    if (isResponsavel(me) && !req.body.responsavel) {
+      req.body.responsavel = me._id;
     }
 
-    // ADMIN: pode criar com quem quiser
-    if (me.role === "ADMIN") {
-        if (!payload.solicitante) payload.solicitante = me._id;
-        if (!payload.responsavel) payload.responsavel = me._id; // opcional: padrão
+    // setor automático (sempre como ID)
+    const sectorId = idOf(me?.setor);
+    if (sectorId && !req.body.setor) req.body.setor = sectorId;
+  }
 
-        if (payload.prazoDias !== undefined && payload.prazoDias !== null && payload.prazoDias !== "") {
-            payload.prazoDias = Number(payload.prazoDias);
-        } else {
-            payload.prazoDias = null;
-        }
-
-        payload.anexos = anexos;
-
-        const created = await ticketService.create(payload);
-        return res.status(201).json(created);
-    }
-
-    // RESPONSAVEL por enquanto não cria
-    throw new HttpError(403, "Somente USER ou ADMIN pode abrir chamado nesta fase");
-});
-
-
-
-const addAttachments = asyncHandler(async (req, res) => {
-    const me = req.user;
-    const anexos = filesToMeta(req);
-    if (!anexos.length) throw new HttpError(400, "Envie ao menos 1 arquivo");
-
-    // pode anexar: ADMIN ou USER (somente se for solicitante) ou RESPONSAVEL (somente se for responsável)
-    const t = await ticketService.getById(req.params.id);
-    const isMineUser = me.role === "USER" && String(t.solicitante?._id || t.solicitante) === String(me._id);
-    const isMineResp = me.role === "RESPONSAVEL" && String(t.responsavel?._id || t.responsavel) === String(me._id);
-
-    if (me.role !== "ADMIN" && !isMineUser && !isMineResp) {
-        throw new HttpError(403, "Você não pode anexar arquivos nesse chamado");
-    }
-
-    const updated = await ticketService.addAttachments(req.params.id, anexos);
-    res.json(updated);
+  // ticketService.create(payload) (seu service já resolve anexos via payload.anexos)
+  // se você usa req.files em outra camada, mantenha a assinatura que você implementou.
+  const ticket = await ticketService.create(req.body);
+  res.status(201).json(ticket);
 });
 
 const update = asyncHandler(async (req, res) => {
-    const me = req.user;
+  const me = req.user;
+  const id = req.params.id;
 
-    // Somente ADMIN por enquanto
-    if (!isAdmin(me)) throw new HttpError(403, "Somente ADMIN pode editar chamados nesta fase");
+  const ticket = await ticketService.getById(id);
 
-    const updated = await ticketService.update(req.params.id, req.body || {});
-    res.json(updated);
+  if (isAdmin(me)) {
+    const updated = await ticketService.update(id, req.body);
+    return res.json(updated);
+  }
+
+  if (!canManageTicket(me, ticket)) {
+    throw new HttpError(403, "Você só pode editar chamados que são seus ou atribuídos a você");
+  }
+
+  // trava campos “admin-only”
+  delete req.body.solicitante;
+  delete req.body.responsavel;
+  delete req.body.setor;
+
+  const updated = await ticketService.update(id, req.body);
+  return res.json(updated);
+});
+
+const addAttachments = asyncHandler(async (req, res) => {
+  const me = req.user;
+  const anexos = filesToMeta(req);
+  if (!anexos.length) throw new HttpError(400, "Envie ao menos 1 arquivo");
+
+  const t = await ticketService.getById(req.params.id);
+
+  if (!canManageTicket(me, t)) {
+    throw new HttpError(403, "Você não pode anexar arquivos nesse chamado");
+  }
+
+  const updated = await ticketService.addAttachments(req.params.id, anexos);
+  res.json(updated);
 });
 
 const updateStatus = asyncHandler(async (req, res) => {
-    const me = req.user;
-    const { status } = req.body || {};
-    if (!status) throw new HttpError(400, "Informe o status");
+  const me = req.user;
+  const { status } = req.body || {};
+  if (!status) throw new HttpError(400, "Informe o status");
 
-    // ADMIN/RESPONSAVEL/USER (USER somente nos próprios chamados)
-    if (!isAdmin(me) && !isResponsavel(me) && !isUser(me)) {
-        throw new HttpError(403, "Você não pode alterar status");
-    }
+  const t = await ticketService.getById(req.params.id);
 
-    // se USER, só pode alterar se for solicitante
-    if (isUser(me)) {
-        const t = await ticketService.getById(req.params.id);
-        const isMine = String(t.solicitante?._id || t.solicitante) === String(me._id);
-        if (!isMine) throw new HttpError(403, "Você não pode alterar status desse chamado");
-    }
+  // Admin pode tudo; USER/RESP: só se puder gerenciar (solicitante ou responsável)
+  if (!isAdmin(me) && !canManageTicket(me, t)) {
+    throw new HttpError(403, "Você não pode alterar status desse chamado");
+  }
 
-    // se RESPONSAVEL, só pode alterar se o ticket for dele
-    if (isResponsavel(me)) {
-        const t = await ticketService.getById(req.params.id);
-        const isMine = String(t.responsavel?._id || t.responsavel) === String(me._id);
-        if (!isMine) throw new HttpError(403, "Você não pode alterar status desse chamado");
-    }
-
-    const updated = await ticketService.updateStatus(req.params.id, status);
-    res.json(updated);
+  const updated = await ticketService.updateStatus(req.params.id, status);
+  res.json(updated);
 });
 
 const remove = asyncHandler(async (req, res) => {
-    const me = req.user;
-    if (!isAdmin(me)) throw new HttpError(403, "Somente ADMIN pode excluir chamados");
-    await ticketService.remove(req.params.id);
-    res.status(204).send();
+  const me = req.user;
+  if (!isAdmin(me)) throw new HttpError(403, "Somente ADMIN pode excluir chamados");
+  await ticketService.remove(req.params.id);
+  res.status(204).send();
 });
 
 const addUpdate = asyncHandler(async (req, res) => {
-    const me = req.user;
-    const { mensagem, anexo } = req.body || {};
-    if (!mensagem) throw new HttpError(400, "Informe a mensagem");
+  const me = req.user;
+  const { mensagem, anexo } = req.body || {};
+  if (!mensagem) throw new HttpError(400, "Informe a mensagem");
 
-    // precisa ter acesso ao ticket para comentar
-    const t = await ticketService.getById(req.params.id);
+  const t = await ticketService.getById(req.params.id);
 
-    if (isAdmin(me)) {
-        const updated = await ticketService.addUpdate(req.params.id, { autor: me._id, mensagem, anexo: anexo || null });
-        return res.json(updated);
-    }
+  // Admin pode; USER/RESP: só se puder gerenciar (solicitante ou responsável)
+  if (!isAdmin(me) && !canManageTicket(me, t)) {
+    throw new HttpError(403, "Você não pode comentar nesse chamado");
+  }
 
-    if (isUser(me)) {
-        const isMine = String(t.solicitante?._id || t.solicitante) === String(me._id);
-        if (!isMine) throw new HttpError(403, "Você não pode comentar nesse chamado");
-        const updated = await ticketService.addUpdate(req.params.id, { autor: me._id, mensagem, anexo: anexo || null });
-        return res.json(updated);
-    }
+  const updated = await ticketService.addUpdate(req.params.id, {
+    autor: me._id,
+    mensagem,
+    anexo: anexo || null,
+  });
 
-    if (isResponsavel(me)) {
-        const isMine = String(t.responsavel?._id || t.responsavel) === String(me._id);
-        if (!isMine) throw new HttpError(403, "Você não pode comentar nesse chamado");
-        const updated = await ticketService.addUpdate(req.params.id, { autor: me._id, mensagem, anexo: anexo || null });
-        return res.json(updated);
-    }
-
-    throw new HttpError(403, "Permissão insuficiente");
+  return res.json(updated);
 });
 
-module.exports = { list, getById, create, addAttachments, update, updateStatus, remove, addUpdate };
+module.exports = {
+  list,
+  getById,
+  create,
+  addAttachments,
+  update,
+  updateStatus,
+  remove,
+  addUpdate,
+};
