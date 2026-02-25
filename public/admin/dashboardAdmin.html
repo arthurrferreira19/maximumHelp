@@ -3,11 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Maximum Help • Dashboard Admin</title>
+  <title>Maximum Help • Dashboard</title>
 
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/style.css" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
 </head>
+
 <body>
   <div class="admin-shell">
     <aside class="sidebar" id="sidebar"></aside>
@@ -19,15 +20,26 @@
             <i data-lucide="panel-left" style="width:18px;height:18px;"></i>
             Menu
           </button>
-          <h1 id="moduleTitle">Dashboard</h1>
-          <span class="badge-accent"><i data-lucide="activity" style="width:16px;height:16px;"></i>Visão Geral</span>
+
+          <h1 id="moduleTitle" style="margin:0;">Dashboard</h1>
+
+          <span class="badge-accent">
+            <i data-lucide="bar-chart-3" style="width:16px;height:16px;"></i>
+            Visão geral
+          </span>
         </div>
 
         <div class="d-flex align-items-center gap-2">
           <button class="btn btn-outline-secondary" id="btnRefresh" style="border-radius:14px;">
             <i data-lucide="refresh-cw" style="width:18px;height:18px;"></i>
           </button>
-          <button class="btn btn-accent" id="btnLogoutTop">
+
+          <a class="btn btn-outline-secondary" href="./chamadosAdmin.html" style="border-radius:14px;">
+            <i data-lucide="inbox" style="width:18px;height:18px;"></i>
+            Chamados
+          </a>
+
+          <button class="btn btn-outline-danger" id="btnLogoutTop" style="border-radius:14px;">
             <i data-lucide="log-out" style="width:18px;height:18px;"></i>
             Sair
           </button>
@@ -35,124 +47,126 @@
       </div>
 
       <div class="content">
-        <div id="dashError"></div>
+        <div id="pageAlert"></div>
 
         <!-- KPIs -->
-        <div class="row g-3 mt-1">
-          <div class="col-12 col-md-6 col-xl-3">
-            <div class="kpi fade-in">
-              <div class="label">Total de chamados</div>
-              <div class="value" id="kpiTotal">—</div>
+        <div class="row g-3">
+          <div class="col-12 col-sm-6 col-xl-3">
+            <div class="soft-card p-3 fade-in">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div style="color:var(--muted); font-size:12px;">Total</div>
+                  <div style="font-size:32px; font-weight:900;" id="kTotal">—</div>
+                </div>
+                <div class="badge-accent">
+                  <i data-lucide="layers" style="width:16px;height:16px;"></i>
+                </div>
+              </div>
+              <div style="color:var(--muted); font-size:12px;">Chamados no sistema</div>
             </div>
           </div>
-          <div class="col-12 col-md-6 col-xl-3">
-            <div class="kpi fade-in">
-              <div class="label">Abertos (não concluídos)</div>
-              <div class="value" id="kpiAbertos">—</div>
+
+          <div class="col-12 col-sm-6 col-xl-3">
+            <div class="soft-card p-3 fade-in">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div style="color:var(--muted); font-size:12px;">Abertos</div>
+                  <div style="font-size:32px; font-weight:900;" id="kOpen">—</div>
+                </div>
+                <div class="badge-accent">
+                  <i data-lucide="inbox" style="width:16px;height:16px;"></i>
+                </div>
+              </div>
+              <div style="color:var(--muted); font-size:12px;">Não concluídos</div>
             </div>
           </div>
-          <div class="col-12 col-md-6 col-xl-3">
-            <div class="kpi fade-in">
-              <div class="label">Urgentes (não concluídos)</div>
-              <div class="value" id="kpiUrgentes">—</div>
+
+          <div class="col-12 col-sm-6 col-xl-3">
+            <div class="soft-card p-3 fade-in">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div style="color:var(--muted); font-size:12px;">Urgentes</div>
+                  <div style="font-size:32px; font-weight:900; color:#ef4444;" id="kUrg">—</div>
+                </div>
+                <div class="badge-accent" style="background:rgba(239,68,68,.10); border-color:rgba(239,68,68,.30); color:#ef4444;">
+                  <i data-lucide="alert-triangle" style="width:16px;height:16px;"></i>
+                </div>
+              </div>
+              <div style="color:var(--muted); font-size:12px;">Em aberto e urgentes</div>
             </div>
           </div>
-          <div class="col-12 col-md-6 col-xl-3">
-            <div class="kpi fade-in">
-              <div class="label">Atrasados</div>
-              <div class="value" id="kpiAtrasados">—</div>
+
+          <div class="col-12 col-sm-6 col-xl-3">
+            <div class="soft-card p-3 fade-in">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <div style="color:var(--muted); font-size:12px;">Concluídos</div>
+                  <div style="font-size:32px; font-weight:900; color:#22c55e;" id="kDone">—</div>
+                </div>
+                <div class="badge-accent" style="background:rgba(34,197,94,.10); border-color:rgba(34,197,94,.30); color:#16a34a;">
+                  <i data-lucide="check-circle-2" style="width:16px;height:16px;"></i>
+                </div>
+              </div>
+              <div style="color:var(--muted); font-size:12px;">Finalizados</div>
             </div>
           </div>
         </div>
 
+        <!-- Status + Recentes -->
         <div class="row g-3 mt-1">
-          <div class="col-12 col-xl-7">
-            <div class="soft-card-sm p-3 fade-in">
-              <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="col-12 col-xl-6">
+            <div class="soft-card p-3 fade-in">
+              <div class="d-flex justify-content-between align-items-center mb-2">
                 <div>
                   <div style="font-weight:900;">Chamados por status</div>
                   <div style="color:var(--muted); font-size:12px;">Distribuição atual</div>
                 </div>
+                <span class="badge-accent">
+                  <i data-lucide="pie-chart" style="width:16px;height:16px;"></i>
+                  Status
+                </span>
               </div>
-              <canvas id="chartStatus" height="120"></canvas>
-            </div>
-          </div>
 
-          <div class="col-12 col-xl-5">
-            <div class="soft-card-sm p-3 fade-in">
-              <div style="font-weight:900;">Últimos 30 dias</div>
-              <div style="color:var(--muted); font-size:12px;" class="mb-2">Chamados criados por dia</div>
-              <canvas id="chart30d" height="140"></canvas>
-            </div>
-          </div>
-        </div>
-
-        <div class="row g-3 mt-1">
-          <div class="col-12 col-xl-6">
-            <div class="soft-card-sm p-3 fade-in">
-              <div class="d-flex align-items-center justify-content-between">
-                <div>
-                  <div style="font-weight:900;">Ranking • Setores</div>
-                  <div style="color:var(--muted); font-size:12px;">Mais chamados em aberto</div>
-                </div>
-                <span class="badge-accent"><i data-lucide="layers" style="width:16px;height:16px;"></i>Top 5</span>
-              </div>
-              <div class="mt-3 table-responsive">
-                <table class="table table-sm align-middle mb-0">
-                  <thead>
-                    <tr style="color:var(--muted); font-size:12px;">
-                      <th>Setor</th>
-                      <th class="text-end">Abertos</th>
-                    </tr>
-                  </thead>
-                  <tbody id="tblSetores"></tbody>
-                </table>
-              </div>
+              <div id="statusBars" class="d-flex flex-column gap-2"></div>
             </div>
           </div>
 
           <div class="col-12 col-xl-6">
-            <div class="soft-card-sm p-3 fade-in">
-              <div class="d-flex align-items-center justify-content-between">
+            <div class="soft-card p-3 fade-in">
+              <div class="d-flex justify-content-between align-items-center mb-2">
                 <div>
-                  <div style="font-weight:900;">Ranking • Responsáveis</div>
-                  <div style="color:var(--muted); font-size:12px;">Mais chamados em aberto</div>
+                  <div style="font-weight:900;">Últimos chamados</div>
+                  <div style="color:var(--muted); font-size:12px;">Clique para abrir</div>
                 </div>
-                <span class="badge-accent"><i data-lucide="user-check" style="width:16px;height:16px;"></i>Top 5</span>
+                <a class="btn btn-outline-secondary btn-sm" href="./chamadosAdmin.html" style="border-radius:14px;">
+                  Ver todos
+                  <i data-lucide="arrow-right" style="width:16px;height:16px;"></i>
+                </a>
               </div>
-              <div class="mt-3 table-responsive">
-                <table class="table table-sm align-middle mb-0">
-                  <thead>
-                    <tr style="color:var(--muted); font-size:12px;">
-                      <th>Responsável</th>
-                      <th style="color:var(--muted);">E-mail</th>
-                      <th class="text-end">Abertos</th>
-                    </tr>
-                  </thead>
-                  <tbody id="tblResponsaveis"></tbody>
-                </table>
-              </div>
+
+              <div id="recentEmpty" style="color:var(--muted);" class="d-none">Nenhum chamado.</div>
+              <div id="recentList" class="d-flex flex-column gap-2"></div>
             </div>
           </div>
         </div>
 
-        <div class="mt-3" style="color:var(--muted); font-size:12px;">
-          Dica: se não houver chamados ainda, os gráficos aparecerão vazios. Assim que você criar Tickets, o dashboard se atualiza.
-        </div>
       </div>
     </section>
   </div>
 
+  <!-- IGUAL AO SETORES: lucide + bootstrap bundle -->
   <script src="https://unpkg.com/lucide@latest"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-  <script src="/assets/js/api.js"></script>
-  <script src="/assets/js/adminCommon.js"></script>
-  <script src="/assets/js/dashboardAdmin.js"></script>
-  <script src="/assets/js/partials.js"></script>
+  <!-- SCRIPTS LOCAIS (paths relativos, como no setores) -->
+  <script src="../assets/js/api.js"></script>
+  <script src="../assets/js/adminCommon.js"></script>
+  <script src="../assets/js/dashboardAdmin.js"></script>
+  <script src="../assets/js/partials.js"></script>
 
+  <!-- IMPORTANTÍSSIMO: depois que sidebar/render estiverem no DOM -->
   <script>
-    lucide.createIcons();
+    try { lucide.createIcons(); } catch (e) {}
   </script>
 </body>
 </html>
