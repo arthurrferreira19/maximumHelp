@@ -112,26 +112,133 @@
           </div>
         </div>
 
-        <!-- Status + Recentes -->
+        <!-- Gráficos principais -->
         <div class="row g-3 mt-1">
+          <!-- Linha: Abertura últimos 30 dias -->
+          <div class="col-12 col-xl-8">
+            <div class="soft-card p-3 fade-in">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                  <div style="font-weight:900;">Abertura de chamados (últimos 30 dias)</div>
+                  <div style="color:var(--muted); font-size:12px;">Gráfico em linha</div>
+                </div>
+                <span class="badge-accent">
+                  <i data-lucide="line-chart" style="width:16px;height:16px;"></i>
+                  Linha
+                </span>
+              </div>
+              <div style="position:relative; height:320px;">
+                <canvas id="chartOpen30"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Donut: Status -->
+          <div class="col-12 col-xl-4">
+            <div class="soft-card p-3 fade-in">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                  <div style="font-weight:900;">Distribuição por status</div>
+                  <div style="color:var(--muted); font-size:12px;">Donut</div>
+                </div>
+                <span class="badge-accent">
+                  <i data-lucide="donut" style="width:16px;height:16px;"></i>
+                  Donut
+                </span>
+              </div>
+              <div style="position:relative; height:320px;">
+                <canvas id="chartStatusDonut"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3 mt-1">
+          <!-- Colunas: Vencimentos próximos 14 dias -->
+          <div class="col-12 col-xl-8">
+            <div class="soft-card p-3 fade-in">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                  <div style="font-weight:900;">Carga prevista por prazo (próximos 14 dias)</div>
+                  <div style="color:var(--muted); font-size:12px;">Gráfico em colunas (onde vocês ficam mais “atolados”)</div>
+                </div>
+                <span class="badge-accent">
+                  <i data-lucide="bar-chart-2" style="width:16px;height:16px;"></i>
+                  Colunas
+                </span>
+              </div>
+              <div style="position:relative; height:320px;">
+                <canvas id="chartDue14"></canvas>
+              </div>
+              <div class="text-muted mt-2" style="font-size:12px;">
+                Considera chamados <strong>em aberto</strong> com <strong>prazoDias</strong> preenchido (dataInicio/createdAt + prazo).
+              </div>
+            </div>
+          </div>
+
+          <!-- Pizza: dia da semana abertura -->
+          <div class="col-12 col-xl-4">
+            <div class="soft-card p-3 fade-in">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                  <div style="font-weight:900;">Abertura por dia da semana</div>
+                  <div style="color:var(--muted); font-size:12px;">Pizza</div>
+                </div>
+                <span class="badge-accent">
+                  <i data-lucide="pie-chart" style="width:16px;height:16px;"></i>
+                  Pizza
+                </span>
+              </div>
+              <div style="position:relative; height:320px;">
+                <canvas id="chartOpenWeekPie"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3 mt-1">
+          <!-- Barras: Top setores -->
           <div class="col-12 col-xl-6">
             <div class="soft-card p-3 fade-in">
               <div class="d-flex justify-content-between align-items-center mb-2">
                 <div>
-                  <div style="font-weight:900;">Chamados por status</div>
-                  <div style="color:var(--muted); font-size:12px;">Distribuição atual</div>
+                  <div style="font-weight:900;">Setores que mais abrem chamados</div>
+                  <div style="color:var(--muted); font-size:12px;">Barras (Top 10)</div>
                 </div>
                 <span class="badge-accent">
-                  <i data-lucide="pie-chart" style="width:16px;height:16px;"></i>
-                  Status
+                  <i data-lucide="building-2" style="width:16px;height:16px;"></i>
+                  Setores
                 </span>
               </div>
-
-              <div id="statusBars" class="d-flex flex-column gap-2"></div>
+              <div style="position:relative; height:320px;">
+                <canvas id="chartTopSectors"></canvas>
+              </div>
             </div>
           </div>
 
+          <!-- Barras: Quem mais abre -->
           <div class="col-12 col-xl-6">
+            <div class="soft-card p-3 fade-in">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                  <div style="font-weight:900;">Quem mais abre chamados</div>
+                  <div style="color:var(--muted); font-size:12px;">Barras (Top 10)</div>
+                </div>
+                <span class="badge-accent">
+                  <i data-lucide="users" style="width:16px;height:16px;"></i>
+                  Solicitantes
+                </span>
+              </div>
+              <div style="position:relative; height:320px;">
+                <canvas id="chartTopOpeners"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recentes (mantém) -->
+        <div class="row g-3 mt-1">
+          <div class="col-12">
             <div class="soft-card p-3 fade-in">
               <div class="d-flex justify-content-between align-items-center mb-2">
                 <div>
@@ -154,17 +261,17 @@
     </section>
   </div>
 
-  <!-- IGUAL AO SETORES: lucide + bootstrap bundle -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-  <!-- SCRIPTS LOCAIS (paths relativos, como no setores) -->
+  <!-- Chart.js (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
   <script src="../assets/js/api.js"></script>
   <script src="../assets/js/adminCommon.js"></script>
   <script src="../assets/js/dashboardAdmin.js"></script>
   <script src="../assets/js/partials.js"></script>
 
-  <!-- IMPORTANTÍSSIMO: depois que sidebar/render estiverem no DOM -->
   <script>
     try { lucide.createIcons(); } catch (e) {}
   </script>
